@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>紫微斗數練習系統</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: '新細明體','PMingLiU','SimSun',serif;
+  background: #f8f4ec;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #222;
+}
+.gz-result {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffd080;
+  letter-spacing: 3px;
+  min-width: 40px;
+}
+.gz-hint {
+  font-size: 11px;
+  color: #c9a96e;
+  white-space: nowrap;
+}
+#toolbar {
+  background: #3d2b1a;
+  color: #f0e6d3;
+  padding: 3px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 0;
+  flex-shrink: 0;
+}
+#toolbar .title { font-size: 13px; font-weight: bold; letter-spacing: 2px; white-space: nowrap; }
+#toolbar button {
+  padding: 3px 10px;
+  background: #c9a96e;
+  border: 1px solid #8b6914;
+  color: #222;
+  cursor: pointer;
+  font-size: 13px;
+  border-radius: 3px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+#toolbar button:hover { background: #e0c080; }
+#toolbar label { font-size: 12px; white-space: nowrap; }
+#toolbar input, #toolbar select {
+  padding: 2px 5px;
+  font-size: 12px;
+  border: 1px solid #c9a96e;
+  background: #fff8f0;
+  font-family: inherit;
+}
+#toolbar input { width: 52px; }
+#toolbar select { max-width: 100px; }
+.sep { color: #c9a96e; font-size: 16px; }
+#main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+#chart-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  overflow: hidden;
+  min-width: 0;
+}
+#chart-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  border: 2px solid #3d2b1a;
+}
+.palace {
+  border: 1px solid #8b7055;
+  position: relative;
+  background: #fffdf8;
+  display: flex;
+  flex-direction: column;
+  cursor: default;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.palace.drag-over { background: #ede0c8 !important; }
+.palace.is-ming { background: #fff9e0; }
+.palace-top {
+  display: flex;
+  align-items: flex-start;
+  padding: 1px 2px;
+  min-height: 14px;
+  gap: 2px;
+}
+.palace-name {
+  color: #5a3010;
+  cursor: pointer;
+  flex: 1;
+  line-height: 1.4;
+  user-select: none;
+}
+.palace-name:hover { color: #c05000; text-decoration: underline; }
+.palace-bottom {
+  display: flex;
+  align-items: flex-end;
+  padding: 1px 2px;
+  min-height: 16px;
+  gap: 0;
+}
+.shen-badge {
+  color: #c05020;
+  font-weight: bold;
+  white-space: nowrap;
+  flex: 1;
+  text-align: center;
+}
+.palace-stars {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 1px;
+  padding: 2px 2px 2px 2px;
+  overflow: hidden;
+  flex: 1;
+  align-items: flex-start;
+}
+/* Each star group: main star + attached sihua stacked vertically */
+.star-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.star-chip {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-size: 11px;
+  line-height: 1.15;
+  padding: 1px 1px;
+  cursor: grab;
+  user-select: none;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.star-chip:hover { background: rgba(0,0,0,0.07); }
+.star-chip:active { cursor: grabbing; }
+.star-chip.t-main  { color: #1a1a8c; }
+.star-chip.t-year  { color: #7a5010; }
+.star-chip.t-month { color: #1a6a3a; }
+.star-chip.t-day   { color: #4a1a6a; }
+.star-chip.t-hour  { color: #8c2a1a; }
+.star-chip.t-other { color: #555; }
+.star-chip.t-sihua { font-weight: bold; }
+.sihua-lu { color: #cc0000; }
+.sihua-quan { color: #006600; }
+.sihua-ke { color: #000099; }
+.sihua-ji { color: #444; }
+.palace-branch {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-weight: bold;
+  color: #444;
+  pointer-events: none;
+  line-height: 1.15;
+  text-align: right;
+}
+.palace-branch .br-stem { color: #7a5020; display: block; }
+.palace-branch .br-zhi  { display: block; }
+.palace-center {
+  grid-column: 2 / 4;
+  grid-row: 2 / 4;
+  background: #f5f0e0;
+  border: 2px solid #8b7055;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+}
+.center-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  gap: 6px;
+}
+.center-field {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.center-field label { color: #5a3010; }
+.center-field select, .center-field span {
+  border: 1px solid #c9a96e;
+  background: #fff8f0;
+  padding: 1px 3px;
+  font-family: inherit;
+}
+.center-field span { border: none; background: none; color: #3d2b1a; font-weight: bold; }
+.center-info {
+  width: 100%;
+  color: #5a3010;
+  border-bottom: 1px dashed #c9a96e;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  line-height: 1.6;
+  text-align: center;
+}
+.center-info .ci-date { color: #3d2b1a; }
+.center-info .ci-ganzhi { color: #8b1a1a; font-weight: bold; }
+.center-zhu {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 2px 0;
+}
+.center-zhu span { color: #3d2b1a; }
+.center-zhu strong { color: #8b1a1a; }
+.center-divider { width: 1px; background: #c9a96e; margin: 6px 0; }
+#star-panel {
+  width: 215px;
+  min-width: 215px;
+  background: #fff8f0;
+  border-left: 2px solid #8b7055;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 6px;
+  flex-shrink: 0;
+}
+#star-panel h3 { font-size: 12px; color: #3d2b1a; margin-bottom: 6px; text-align: center; }
+.star-category { margin-bottom: 6px; }
+.cat-header {
+  font-size: 11px;
+  font-weight: bold;
+  color: #3d2b1a;
+  padding: 2px 4px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #c9a96e;
+  margin-bottom: 3px;
+  user-select: none;
+}
+.cat-header:hover { background: #f0e4cc; }
+.cat-stars { display: flex; flex-wrap: wrap; gap: 2px; }
+.panel-chip {
+  padding: 1px 5px;
+  font-size: 12px;
+  cursor: grab;
+  border: 1px solid #c9a96e;
+  border-radius: 3px;
+  background: #fffdf8;
+  user-select: none;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.panel-chip:active { cursor: grabbing; }
+.panel-chip.placed { opacity: 0.3; pointer-events: none; }
+.panel-chip.t-main  { color: #1a1a8c; }
+.panel-chip.t-year  { color: #7a5010; }
+.panel-chip.t-month { color: #1a6a3a; }
+.panel-chip.t-day   { color: #4a1a6a; }
+.panel-chip.t-hour  { color: #8c2a1a; }
+.panel-chip.t-other { color: #555; }
+.panel-chip.t-sihua { color: #cc3300; font-weight: bold; }
+.panel-chip.selected-chip { outline: 2px solid #c9a96e; background: #f5e6c8; }
+#formula-box {
+  margin-top: auto;
+  border-top: 2px solid #c9a96e;
+  padding: 6px 5px;
+  font-size: 11px;
+  color: #3d2b1a;
+  background: #fff8f0;
+  min-height: 20%;
+  line-height: 1.6;
+}
+#formula-box .fb-name { font-weight: bold; font-size: 12px; margin-bottom: 3px; }
+#formula-box .fb-hint { color: #888; font-size: 10px; }
+#result-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+}
+#result-overlay.show { display: flex; }
+#result-box {
+  background: #fffdf8;
+  border: 2px solid #3d2b1a;
+  border-radius: 6px;
+  padding: 16px 20px;
+  width: 460px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+#result-box h3 { color: #3d2b1a; margin-bottom: 10px; font-size: 15px; }
+.r-ok { color: #1a6a2a; margin: 2px 0; font-size: 12px; }
+.r-err { color: #8c1a1a; margin: 2px 0; font-size: 12px; }
+.r-warn { color: #8c5000; margin: 2px 0; font-size: 12px; }
+.r-info { color: #3d2b1a; margin-top: 8px; font-size: 11px; border-top: 1px solid #c9a96e; padding-top: 6px; }
+#result-box .close-btn {
+  float: right; cursor: pointer; background: none; border: none;
+  font-size: 18px; color: #888; margin: -4px -4px 0 0;
+}
+#sihua-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+#sihua-overlay.show { display: flex; }
+#sihua-box {
+  background: #fffdf8;
+  border: 2px solid #3d2b1a;
+  border-radius: 6px;
+  padding: 14px 18px;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+#sihua-box h4 { color: #3d2b1a; margin-bottom: 8px; font-size: 13px; }
+.sihua-opt {
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+.sihua-opt:hover { background: #f0e0c0; }
+.sihua-cancel {
+  margin-top: 8px; padding: 3px 10px; cursor: pointer;
+  background: #eee; border: 1px solid #ccc; border-radius: 3px;
+  font-size: 12px; font-family: inherit;
+}
+#ctx-menu {
+  display: none;
+  position: fixed;
+  background: #fffdf8;
+  border: 1px solid #8b7055;
+  border-radius: 4px;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+  z-index: 800;
+  min-width: 140px;
+}
+#ctx-menu div {
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#ctx-menu div:hover { background: #f0e0c0; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title">紫微斗數練習</span>
+  <span class="sep">|</span>
+  <label>西元</label>
+  <input type="number" id="sYear" placeholder="年" style="width:60px">
+  <label>年</label>
+  <input type="number" id="sMonth" placeholder="月" min="1" max="12" style="width:38px">
+  <label>月</label>
+  <input type="number" id="sDay" placeholder="日" min="1" max="31" style="width:38px">
+  <label>日</label>
+  <input type="number" id="sHour" placeholder="時" min="0" max="23" style="width:38px">
+  <label>時</label>
+  <button onclick="convertSolarToLunar()">→農曆</button>
+  <span class="sep">|</span>
+  <label>農曆</label>
+  <input type="number" id="iYear" placeholder="民國/西元年" style="width:85px">
+  <label>年</label>
+  <input type="number" id="iMonth" placeholder="月" min="1" max="12" style="width:40px">
+  <label>月</label>
+  <input type="number" id="iDay" placeholder="日" min="1" max="30" style="width:40px">
+  <label>日</label>
+  <select id="iHour">
+    <option value="">時辰</option>
+    <option value="0">子時 23-1時</option>
+    <option value="1">丑時 1-3時</option>
+    <option value="2">寅時 3-5時</option>
+    <option value="3">卯時 5-7時</option>
+    <option value="4">辰時 7-9時</option>
+    <option value="5">巳時 9-11時</option>
+    <option value="6">午時 11-13時</option>
+    <option value="7">未時 13-15時</option>
+    <option value="8">申時 15-17時</option>
+    <option value="9">酉時 17-19時</option>
+    <option value="10">戌時 19-21時</option>
+    <option value="11">亥時 21-23時</option>
+  </select>
+  <select id="iGender" style="width:50px" onchange="st.gender=this.value; render()">
+    <option value="男">男</option>
+    <option value="女">女</option>
+  </select>
+  <span class="sep">|</span>
+  <button onclick="runAuto()">🔮 自動排盤</button>
+  <button onclick="runCheck()">✅ 核對答案</button>
+  <button onclick="clearAll()">🗑 清除全部</button>
+  <button onclick="exportImg()">💾 存成圖片</button>
+  <button onclick="copyImgSimple()">📋 複製盤</button>
+  <input type="number" id="gzYear" placeholder="西元/民國年" style="width:90px"
+         oninput="updateGanzhi()" onchange="updateGanzhi()">
+  <span id="gzResult" class="gz-result">—</span>
+  <span class="gz-hint" id="gzHint"></span>
+</div>
+
+<div id="main">
+  <div id="chart-area">
+    <div id="chart-grid"></div>
+  </div>
+  <div id="star-panel"></div>
+</div>
+
+<!-- Result modal -->
+<div id="result-overlay">
+  <div id="result-box">
+    <button class="close-btn" onclick="closeResult()">✕</button>
+    <h3>核對結果</h3>
+    <div id="result-content"></div>
+  </div>
+</div>
+
+<!-- Sihua attach modal -->
+<div id="sihua-overlay">
+  <div id="sihua-box">
+    <h4 id="sihua-title">選擇附掛星曜</h4>
+    <div id="sihua-list"></div>
+    <button class="sihua-cancel" onclick="closeSihua()">取消</button>
+  </div>
+</div>
+
+<!-- Right-click context menu -->
+<div id="ctx-menu">
+  <div id="ctx-ming">設為命宮</div>
+  <div id="ctx-shen">設為身宮</div>
+  <div id="ctx-clear">清除此宮星曜</div>
+</div>
+
+<script>
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const BR = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const STEMS = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const PNAMES = ['命宮','兄弟','夫妻','子女','財帛','疾厄','遷移','僕役','官祿','田宅','福德','父母'];
+const JU_NAME = {2:'水二局',3:'木三局',4:'金四局',5:'土五局',6:'火六局'};
+
+// branch index → {r, c} in the 4×4 grid
+const BR_GRID = {
+  0:{r:3,c:2}, 1:{r:3,c:1}, 2:{r:3,c:0}, 3:{r:2,c:0},
+  4:{r:1,c:0}, 5:{r:0,c:0}, 6:{r:0,c:1}, 7:{r:0,c:2},
+  8:{r:0,c:3}, 9:{r:1,c:3},10:{r:2,c:3},11:{r:3,c:3}
+};
+
+const STARS = {
+  main:['紫微','天機','太陽','武曲','天同','廉貞','天府','太陰','貪狼','巨門','天相','天梁','七殺','破軍'],
+  // ── 依年 ──────────────────────────────────────
+  year:[
+    // 年干
+    '祿存','擎羊','陀羅','天魁','天鉞','天官','天福','截路','空亡',
+    // 年支
+    '天馬','天虛','天哭','紅鸞','天喜','孤辰','寡宿','破碎','華蓋','咸池','蜚廉','龍池','鳳閣','天空','天巫'
+  ],
+  // ── 依月 ──────────────────────────────────────
+  month:['左輔','右弼','天刑','天姚','陰煞','天德','月德','解神'],
+  // ── 依日 ──────────────────────────────────────
+  day:['三台','八座','恩光','天貴'],
+  // ── 依時 ──────────────────────────────────────
+  hour:['文昌','文曲','火星','鈴星','地空','地劫','台輔','封誥'],
+  // ── 其他（依命宮/身宮+月）──────────────────────
+  other:['天才','天壽'],
+  sihua:['化祿','化權','化科','化忌']
+};
+
+const YIN_STEM_OPTIONS = [
+  {idx:2, label:'丙（甲己年）'},
+  {idx:4, label:'戊（乙庚年）'},
+  {idx:6, label:'庚（丙辛年）'},
+  {idx:8, label:'壬（丁壬年）'},
+  {idx:0, label:'甲（戊癸年）'}
+];
+
+// star name → category key
+const STYPE = {};
+Object.entries(STARS).forEach(([k,arr]) => arr.forEach(s => STYPE[s]=k));
+
+// 點選星曜顯示排盤公式
+const STAR_FORMULA = {
+  // 六吉星
+  '文昌': '依生時｜戌宮起子時，逆布至生時\n子→戌、丑→酉、寅→申…',
+  '文曲': '依生時｜辰宮起子時，順布至生時\n子→辰、丑→巳、寅→午…',
+  '左輔': '依生月｜辰宮起正月，順布\n正月→辰、二月→巳…',
+  '右弼': '依生月｜戌宮起正月，逆布\n正月→戌、二月→酉…',
+  '天魁': '依年干查表（天乙貴人）\n甲戊庚→丑、乙己→子\n丙丁→亥、辛→午、壬癸→卯',
+  '天鉞': '依年干查表（天乙貴人）\n甲戊庚→未、乙己→申\n丙丁→酉、辛→寅、壬癸→巳',
+  // 六煞星
+  '擎羊': '依年干｜祿存前一宮\n甲→卯、乙→辰、丙戊→午\n丁己→未、庚→酉、辛→戌\n壬→子、癸→丑',
+  '陀羅': '依年干｜祿存後一宮\n甲→丑、乙→寅、丙戊→辰\n丁己→巳、庚→未、辛→申\n壬→亥、癸→子',
+  '火星': '依年支三合底數，加生時順布\n申子辰起寅、巳酉丑起卯\n寅午戌起丑、亥卯未起酉',
+  '鈴星': '依年支三合底數，加生時順布\n申子辰/巳酉丑起戌\n寅午戌起卯、亥卯未起戌',
+  '地劫': '依生時｜亥宮起子時，順布\n子→亥、丑→子、寅→丑…',
+  '地空': '依生時｜亥宮起子時，逆布\n子→亥、丑→戌、寅→酉…',
+  // 輔助星
+  '祿存': '依年干查表\n甲→寅、乙→卯、丙戊→巳\n丁己→午、庚→申、辛→酉\n壬→亥、癸→子',
+  '天馬': '依年支三合\n申子辰→寅、寅午戌→申\n巳酉丑→亥、亥卯未→巳',
+  '天才': '依生月｜命宮起正月，順布至生月',
+  '天壽': '依生月｜身宮起正月，順布至生月',
+  '天姚': '依生月｜丑宮起正月，順布\n正月→丑、二月→寅…十二月→子',
+  '天刑': '依生月｜酉宮起正月，順布\n正月→酉、二月→戌…',
+  '天巫': '依年支三合\n申子辰→亥、亥卯未→寅\n寅午戌→巳、巳酉丑→申',
+  '天虛': '依年支｜午宮起子年，順布\n子年→午、丑年→未…',
+  '天哭': '依年支｜午宮起子年，逆布\n子年→午、丑年→巳…',
+  '紅鸞': '依年支｜卯宮起子年，逆布\n子年→卯、丑年→寅…',
+  '天喜': '依年支｜紅鸞對宮（差6宮）',
+  '孤辰': '依年支\n亥子丑→寅、寅卯辰→巳\n巳午未→申、申酉戌→亥',
+  '寡宿': '依年支\n亥子丑→戌、寅卯辰→丑\n巳午未→辰、申酉戌→未',
+  '破碎': '依年支四正/四庫/四生\n子午卯酉→巳\n辰戌丑未→丑\n寅申巳亥→酉',
+  '華蓋': '依年支三合庫位\n申子辰→辰、亥卯未→未\n寅午戌→戌、巳酉丑→丑',
+  '咸池': '依年支三合（桃花位）\n申子辰→酉、亥卯未→子\n寅午戌→卯、巳酉丑→午',
+  '截路': '依年干（兩干同組）\n甲己→申、乙庚→午\n丙辛→辰、丁壬→寅、戊癸→子',
+  '空亡': '依年干｜截路下一宮\n甲己→酉、乙庚→未\n丙辛→巳、丁壬→卯、戊癸→丑',
+  '蜚廉': '依年支逐支對照\n子→申、丑→酉、寅→戌、卯→巳\n辰→午、巳→未、午→寅、未→卯\n申→辰、酉→亥、戌→子、亥→丑',
+  '陰煞': '依生月｜每兩月遞減2宮\n正七→寅、二八→子、三九→戌\n四十→申、五十一→午、六十二→辰',
+  '天德': '依生月查表（每四月循環）\n正→酉、二→申、三→子、四→亥\n五→卯、六→寅、七→午、八→巳\n九→酉、十→申、十一→子、十二→亥',
+  '月德': '依生月｜天德對宮（差6宮）',
+  '解神': '依生月｜每兩月遞增2宮\n正二→申、三四→戌、五六→子\n七八→寅、九十→辰、十一十二→午',
+  '天空': '依年支｜順行一宮\n子年→丑、丑年→寅…',
+  '三台': '依生日｜左輔起初一，順布至生日',
+  '八座': '依生日｜右弼起初一，逆布至生日',
+  '龍池': '依年支｜辰宮起子年，順布\n子年→辰、丑年→巳…',
+  '鳳閣': '依年支｜戌宮起子年，逆布\n子年→戌、丑年→酉…',
+  '天官': '依年干查表\n甲→未、乙→辰、丙→未、丁→寅\n戊→卯、己→酉、庚→亥、辛→酉\n壬→戌、癸→亥',
+  '天福': '依年干查表\n甲→酉、乙→申、丙→子、丁→亥\n戊→卯、己→寅、庚→午、辛→巳\n壬→辰、癸→午',
+  '恩光': '依生日｜文昌起初一順布至生日，退一宮',
+  '天貴': '依生日｜文曲起初一順布至生日，退一宮',
+  '台輔': '依生時｜午宮起子時，順布\n子時→午、丑時→未…',
+  '封誥': '依生時｜寅宮起子時，順布\n子時→寅、丑時→卯…',
+};
+
+
+// 五行局 table: [yearStem%5][branchIdx] → 局
+// yearStem groups: 甲己=0, 乙庚=1, 丙辛=2, 丁壬=3, 戊癸=4
+const JU_TABLE = [
+  [2,2,6,6,3,3,5,5,4,4,6,6], // 甲己
+  [6,6,5,5,4,4,3,3,2,2,5,5], // 乙庚
+  [5,5,3,3,2,2,4,4,6,6,3,3], // 丙辛
+  [3,3,4,4,6,6,2,2,5,5,4,4], // 丁壬
+  [4,4,2,2,5,5,6,6,3,3,2,2]  // 戊癸
+];
+
+// 四化 by year stem (0甲~9癸): [祿星, 權星, 科星, 忌星]
+const SIHUA_TABLE = {
+  0:['廉貞','破軍','武曲','太陽'],
+  1:['天機','天梁','紫微','太陰'],
+  2:['天同','天機','文昌','廉貞'],
+  3:['太陰','天同','天機','巨門'],
+  4:['貪狼','太陰','右弼','天機'],
+  5:['武曲','貪狼','天梁','文曲'],
+  6:['太陽','武曲','太陰','天同'],
+  7:['巨門','太陽','文曲','文昌'],
+  8:['天梁','紫微','左輔','武曲'],
+  9:['破軍','巨門','太陰','貪狼']
+};
+
+const SIHUA_TAGS = ['祿','權','科','忌'];
+
+// 命主 by 命宮地支（子丑寅卯辰巳午未申酉戌亥）
+const MING_ZHU = ['貪狼','巨門','祿存','文曲','廉貞','武曲','破軍','武曲','廉貞','文曲','祿存','巨門'];
+// 身主 by 年支（子丑寅卯辰巳午未申酉戌亥）
+const SHEN_ZHU = ['火星','天相','天梁','天同','文昌','天機','火星','天機','文昌','天同','天梁','天相'];
+
+// 干支年顯示（兩字）：例如 2026 → "丙午"
+function ganzhiYear(adYear) {
+  const y = adYear < 200 ? adYear + 1911 : adYear;
+  return STEMS[(y - 4 + 600) % 10] + BR[(y - 4 + 600) % 12];
+}
+
+function updateGanzhi() {
+  const val = parseInt(document.getElementById('gzYear').value);
+  const el  = document.getElementById('gzResult');
+  const hint = document.getElementById('gzHint');
+  if (isNaN(val) || val < 1) { el.textContent = '—'; hint.textContent = ''; return; }
+  const y = val < 200 ? val + 1911 : val;
+  const stem   = STEMS[(y - 4 + 600) % 10];
+  const branch = BR[(y - 4 + 600) % 12];
+  const adYear = val < 200 ? `西元 ${y}` : '';
+  el.textContent = stem + branch;
+  hint.textContent = adYear ? `（${adYear}）` : '';
+}
+
+// ============================================================
+//  STATE
+// ============================================================
+const st = {
+  mingGong: null,   // branch index 0-11 or null
+  shenGong: null,   // branch index 0-11 or null
+  wuXingJu: null,   // 2/3/4/5/6 or null
+  yinStem:  null,   // 寅宮天干 index 0-9 or null
+  solarDate: null,  // {year,month,day,hour} or null
+  lunarDateStr: '', // 
+  lunarYearAD: null, // AD year (for 干支年 and 身主)
+  mingZhu: null,    // 命主 star name
+  shenZhu: null,    // 身主 star name
+  gender: '男',     // 男 or 女
+  // palaces[i] = array of {name, cat, attachedTo: null|starName}
+  // (sihua items use attachedTo to indicate which main star they're attached to)
+  palaces: Array.from({length:12}, ()=>[]),
+  catOpen: {main:true, year:true, month:true, day:true, hour:true, other:true, sihua:true}
+};
+
+let drag = null;       // {name, cat, dtype, fromPalace: null|idx, starRef: null|obj, sourceIndex}
+let pendSihua = null;  // {name, targetBranch}
+let ctxBranch = null;  // branch for right-click menu
+
+// ============================================================
+//  CALCULATION ENGINE
+// ============================================================
+function yearStemBranch(year) {
+  const y = year < 200 ? year + 1911 : year; // 民國年自動轉西元
+  return { stem: (y - 4 + 600) % 10, branch: (y - 4 + 600) % 12 };
+}
+
+function calcMingGong(month, h) { return (month + 1 - h + 120) % 12; }
+function calcShenGong(month, h) { return (2 + month - 1 + h) % 12; }
+
+function calcJu(stem, mingBranch) {
+  return JU_TABLE[stem % 5][mingBranch];
+}
+
+function calcZiwei(ju, day) {
+  const rem = day % ju;
+  const add = rem === 0 ? 0 : ju - rem;
+  const q = (day + add) / ju;
+  let pos;
+  if (add === 0) {
+    pos = q;
+  } else if (add % 2 === 1) {
+    pos = q - add;   // 奇數：減
+  } else {
+    pos = q + add;   // 偶數：加
+  }
+  // 寅(2)為第1宮，順數pos宮
+  return (2 + pos - 1 + 120) % 12;
+}
+
+function calc14Stars(Z) {
+  const TF = (4 - Z + 12) % 12;  // 天府與紫微對稱於寅申線
+  return {
+    '紫微': Z,
+    '天機': (Z+11)%12,
+    '太陽': (Z+9)%12,
+    '武曲': (Z+8)%12,
+    '天同': (Z+7)%12,
+    '廉貞': (Z+4)%12,
+    '天府': TF,
+    '太陰': (TF+1)%12,
+    '貪狼': (TF+2)%12,
+    '巨門': (TF+3)%12,
+    '天相': (TF+4)%12,
+    '天梁': (TF+5)%12,
+    '七殺': (TF+6)%12,
+    '破軍': (TF+10)%12
+  };
+}
+
+// 以任一已放置主星為基準，反推出紫微所在宮位。
+// 十四主星彼此的相對位置固定，因此不需要生辰資料即可補齊其餘13顆。
+function getZiweiFromMainAnchor(starName, branch) {
+  for (let z = 0; z < 12; z++) {
+    const pos = calc14Stars(z);
+    if (pos[starName] === branch) return z;
+  }
+  return null;
+}
+
+function getPlacedMainStars() {
+  const result = [];
+  for (let b = 0; b < 12; b++) {
+    st.palaces[b].forEach(star => {
+      if (star.cat === 'main') result.push({ ...star, branch: b });
+    });
+  }
+  return result;
+}
+
+// 自動補齊十四主星：保留目前已放的主星，依其位置計算其餘13顆。
+function autoFillMainStars(anchorName = null, anchorBranch = null) {
+  const placed = getPlacedMainStars();
+
+  if (anchorName === null || anchorBranch === null) {
+    if (placed.length !== 1) {
+      if (placed.length === 0) {
+        alert('請先放入一顆十四主星，再執行自動排星。');
+      } else {
+        alert('目前已有多顆十四主星，請保留一顆作為基準後再執行。');
+      }
+      return false;
+    }
+    anchorName = placed[0].name;
+    anchorBranch = placed[0].branch;
+  }
+
+  if (!STARS.main.includes(anchorName)) {
+    alert('基準星必須是十四主星之一。');
+    return false;
+  }
+
+  const ziwei = getZiweiFromMainAnchor(anchorName, anchorBranch);
+  if (ziwei === null) {
+    alert('無法由目前主星位置推算十四主星，請重新放置。');
+    return false;
+  }
+
+  const pos = calc14Stars(ziwei);
+
+  // 僅重建十四主星，其餘輔星/流年/大限完全保留。
+  for (let b = 0; b < 12; b++) {
+    st.palaces[b] = st.palaces[b].filter(star => star.cat !== 'main');
+  }
+
+  STARS.main.forEach(name => {
+    st.palaces[pos[name]].push({
+      name,
+      cat: 'main',
+      attachedTo: null
+    });
+  });
+
+  render();
+  return true;
+}
+
+function calcAuxStars(stem, yBranch, month, day, h, ming, shen) {
+  const p = {};
+  p['文昌'] = (10 - h + 12) % 12;
+  p['文曲'] = (4 + h) % 12;
+  p['左輔'] = (3 + month) % 12;
+  p['右弼'] = (11 - month + 12) % 12;
+
+  // 天魁 天鉞 by year stem（甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，壬癸兔蛇藏，六辛逢馬虎）
+  // KY[stem] = [天魁宮位, 天鉞宮位]
+  const KY = [
+    [1,7],   // 甲: 天魁丑, 天鉞未
+    [0,8],   // 乙: 天魁子, 天鉞申
+    [11,9],  // 丙: 天魁亥, 天鉞酉
+    [11,9],  // 丁: 天魁亥, 天鉞酉
+    [1,7],   // 戊: 天魁丑, 天鉞未
+    [0,8],   // 己: 天魁子, 天鉞申
+    [1,7],   // 庚: 天魁丑, 天鉞未
+    [6,2],   // 辛: 天魁午, 天鉞寅
+    [3,5],   // 壬: 天魁卯, 天鉞巳
+    [3,5]    // 癸: 天魁卯, 天鉞巳
+  ];
+  p['天魁'] = KY[stem][0];
+  p['天鉞'] = KY[stem][1];
+
+  // 祿存 by year stem → 擎羊 陀羅
+  const LU = [2,3,5,6,5,6,8,9,11,0];
+  p['祿存'] = LU[stem];
+  p['擎羊'] = (LU[stem]+1)%12;
+  p['陀羅'] = (LU[stem]+11)%12;
+
+  // 天馬 by year branch: 申子辰→寅, 寅午戌→申, 巳酉丑→亥, 亥卯未→巳
+  const TM = [2,11,8,5,2,11,8,5,2,11,8,5];
+  p['天馬'] = TM[yBranch];
+
+  // 地空 地劫 by hour: 亥宮起子時，地劫順布，地空逆布
+  p['地劫'] = (11+h)%12;
+  p['地空'] = (11-h+12)%12;
+
+  // 火星: 申子辰→寅(2), 巳酉丑→卯(3), 寅午戌→丑(1), 亥卯未→酉(9)
+  const FB = [2,3,1,9,2,3,1,9,2,3,1,9];
+  p['火星'] = (FB[yBranch]+h)%12;
+
+  // 鈴星: 申子辰→戌(10), 巳酉丑→戌(10), 寅午戌→卯(3), 亥卯未→戌(10)
+  const LB = [10,10,3,10,10,10,3,10,10,10,3,10];
+  p['鈴星'] = (LB[yBranch]+h)%12;
+
+  // 天才: 從命宮起正月順布至生月
+  p['天才'] = (ming + month - 1) % 12;
+
+  // 天壽: 從身宮起正月順布至生月
+  p['天壽'] = (shen + month - 1) % 12;
+
+  // 天姚: 丑宮(1)起正月順布至生月
+  p['天姚'] = month % 12;
+
+  // 天刑: 酉宮(9)起寅月(正月)順布
+  p['天刑'] = (month + 8) % 12;
+
+  // 天巫: 申子辰→亥(11), 亥卯未→寅(2), 寅午戌→巳(5), 巳酉丑→申(8)
+  const TWU = [11,8,5,2,11,8,5,2,11,8,5,2];
+  p['天巫'] = TWU[yBranch];
+
+  // 天虛: 午宮(6)起子年順布至年支
+  p['天虛'] = (6 + yBranch) % 12;
+
+  // 天哭: 午宮(6)起子年逆布至年支
+  p['天哭'] = (6 - yBranch + 12) % 12;
+
+  // 紅鸞: 卯宮(3)起子年逆布至年支
+  p['紅鸞'] = (3 - yBranch + 12) % 12;
+
+  // 天喜: 與紅鸞對宮（差6宮）
+  p['天喜'] = (p['紅鸞'] + 6) % 12;
+
+  // 孤辰: 亥子丑→寅, 寅卯辰→巳, 巳午未→申, 申酉戌→亥
+  const GC = [2,2,5,5,5,8,8,8,11,11,11,2];
+  p['孤辰'] = GC[yBranch];
+
+  // 寡宿: 亥子丑→戌, 寅卯辰→丑, 巳午未→辰, 申酉戌→未
+  const GS = [10,10,1,1,1,4,4,4,7,7,7,10];
+  p['寡宿'] = GS[yBranch];
+
+  // 破碎: 子午卯酉→巳, 辰戌丑未→丑, 寅申巳亥→酉
+  const PC = [5,1,9,5,1,9,5,1,9,5,1,9];
+  p['破碎'] = PC[yBranch];
+
+  // 華蓋: 三合庫位 申子辰→辰, 亥卯未→未, 寅午戌→戌, 巳酉丑→丑
+  const HG = [4,1,10,7,4,1,10,7,4,1,10,7];
+  p['華蓋'] = HG[yBranch];
+
+  // 咸池（桃花）: 申子辰→酉, 亥卯未→子, 寅午戌→卯, 巳酉丑→午
+  const XC = [9,6,3,0,9,6,3,0,9,6,3,0];
+  p['咸池'] = XC[yBranch];
+
+  // 截路: 甲己→申, 乙庚→午, 丙辛→辰, 丁壬→寅, 戊癸→子
+  const JL = [8,6,4,2,0,8,6,4,2,0];
+  p['截路'] = JL[stem];
+
+  // 空亡: 截路 + 1宮
+  p['空亡'] = (JL[stem] + 1) % 12;
+
+  // 蜚廉: 子→申,丑→酉,寅→戌,卯→巳,辰→午,巳→未,午→寅,未→卯,申→辰,酉→亥,戌→子,亥→丑
+  const FL = [8,9,10,5,6,7,2,3,4,11,0,1];
+  p['蜚廉'] = FL[yBranch];
+
+  // 陰煞: 正七寅,二八子,三九戌,四十申,五十一午,六十二辰（每月-2宮）
+  p['陰煞'] = (4 - 2 * month + 120) % 12;
+
+  // 天德: 依月份查表（每四月循環）
+  const TD = [9,8,0,11,3,2,6,5,9,8,0,11];
+  p['天德'] = TD[month - 1];
+
+  // 月德: 天德對宮
+  p['月德'] = (TD[month - 1] + 6) % 12;
+
+  // 解神: 正二申,三四戌,五六子,七八寅,九十辰,十一十二午（依生月，每兩月+2宮）
+  p['解神'] = (8 + Math.floor((month - 1) / 2) * 2) % 12;
+
+  // 天空: 出生年支順行一宮
+  p['天空'] = (yBranch + 1) % 12;
+
+  // 三台: 從左輔起初一順布至生日
+  p['三台'] = (p['左輔'] + day - 1) % 12;
+
+  // 台輔: 午宮起子時，順至生時
+  p['台輔'] = (6 + h) % 12;
+
+  // 八座: 從右弼起初一逆布至生日
+  p['八座'] = (p['右弼'] - day + 1 + 120) % 12;
+
+  // 龍池: 辰(4)起子年，順布至年支
+  p['龍池'] = (yBranch + 4) % 12;
+
+  // 鳳閣: 戌(10)起子年，逆布至年支
+  p['鳳閣'] = (10 - yBranch + 12) % 12;
+
+  // 天官、天福: 年干查表
+  const TIANGUAN = [7,4,7,2,3,9,11,9,10,11];
+  const TIANFU_T = [9,8,0,11,3,2,6,5,4,6];
+  p['天官'] = TIANGUAN[stem];
+  p['天福'] = TIANFU_T[stem];
+
+  // 恩光: 文昌起初一順布至生日，再退一宮
+  p['恩光'] = (p['文昌'] + day - 2 + 120) % 12;
+
+  // 天貴: 文曲起初一順布至生日，再退一宮
+  p['天貴'] = (p['文曲'] + day - 2 + 120) % 12;
+
+  // 封誥: 寅宮起子時，順至生時
+  p['封誥'] = (2 + h) % 12;
+
+  return p;
+}
+
+function calcFull(year, month, day, h) {
+  const {stem, branch} = yearStemBranch(year);
+  const ming = calcMingGong(month, h);
+  const shen = calcShenGong(month, h);
+  const ju   = calcJu(stem, ming);
+  const ziwei = calcZiwei(ju, day);
+  const pos  = Object.assign({}, calc14Stars(ziwei), calcAuxStars(stem, branch, month, day, h, ming, shen));
+  const sihuaStars = SIHUA_TABLE[stem];
+  return { stem, branch, ming, shen, ju, ziwei, pos, sihuaStars };
+}
+
+// ============================================================
+//  RENDERING
+// ============================================================
+function render() {
+  renderGrid();
+  renderPanel();
+}
+
+function gridSize() {
+  // Half-A4 aspect ratio: chart_w / chart_h from gen_ziwei.py
+  const RATIO = 1146 / 806;  // ≈ 1.422 (width / height)
+  // Measure actual header height dynamically
+  const tb = document.getElementById('toolbar');
+  const starPanel = document.getElementById('star-panel');
+  const headerH = tb ? tb.offsetHeight : 50;
+  const sideW = (starPanel ? starPanel.offsetWidth : 215);
+  const availW = window.innerWidth  - sideW - 20;
+  const availH = window.innerHeight - headerH - 8;
+  let gridW, gridH;
+  if (availW / availH > RATIO) {
+    gridH = Math.max(200, availH);
+    gridW = Math.round(gridH * RATIO);
+  } else {
+    gridW = Math.max(284, availW);
+    gridH = Math.round(gridW / RATIO);
+  }
+  return { cw: Math.floor(gridW / 4), ch: Math.floor(gridH / 4) };
+}
+
+function renderGrid() {
+  const grid = document.getElementById('chart-grid');
+  const { cw, ch } = gridSize();
+  grid.style.width  = (cw * 4) + 'px';
+  grid.style.height = (ch * 4) + 'px';
+  grid.innerHTML = '';
+
+  // Create palace cells
+  for (let b = 0; b < 12; b++) {
+    const cell = makePalace(b, cw, ch);
+    const g = BR_GRID[b];
+    cell.style.gridColumn = (g.c + 1).toString();
+    cell.style.gridRow    = (g.r + 1).toString();
+    grid.appendChild(cell);
+  }
+
+  // Center merged cell
+  const center = makeCenter(cw, ch);
+  center.style.gridColumn = '2 / 4';
+  center.style.gridRow    = '2 / 4';
+  grid.appendChild(center);
+}
+
+function makePalace(b, cw, ch) {
+  const div = document.createElement('div');
+  div.className = 'palace';
+  if (st.mingGong === b) div.classList.add('is-ming');
+  div.dataset.branch = b;
+  div.style.width  = cw + 'px';
+  div.style.height = ch + 'px';
+
+  // Font size matching 地支 proportion (~13% of cell height)
+  const cellFs = Math.max(10, Math.min(20, Math.round(ch * 0.13)));
+  div.style.fontSize = cellFs + 'px';
+
+  // Stars area: each group = main star + attached sihua stacked in a column
+  const starsDiv = document.createElement('div');
+  starsDiv.className = 'palace-stars';
+  sortedItems(st.palaces[b]).forEach(({leader, children}) => {
+    const group = document.createElement('div');
+    group.className = 'star-group';
+    group.appendChild(makeStarChip(leader, b, ch));
+    children.forEach(child => {
+      const sihuaChip = makeStarChip(child, b, ch);
+      sihuaChip.style.marginTop = '4px';
+      group.appendChild(sihuaChip);
+    });
+    starsDiv.appendChild(group);
+  });
+  div.appendChild(starsDiv);
+
+  // Bottom row: palace name (left) | 身 badge
+  const bot = document.createElement('div');
+  bot.className = 'palace-bottom';
+
+  const nameSpan = document.createElement('div');
+  nameSpan.className = 'palace-name';
+  nameSpan.title = '左鍵: 設命宮  右鍵: 更多選項';
+  if (st.mingGong !== null) {
+    const off = (st.mingGong - b + 12) % 12;
+    nameSpan.textContent = PNAMES[off];
+  } else {
+    nameSpan.textContent = '⊕';
+    nameSpan.style.color = '#bbb';
+  }
+  nameSpan.onclick = e => { e.stopPropagation(); setMing(b); };
+  bot.appendChild(nameSpan);
+
+  if (st.shenGong === b) {
+    const badge = document.createElement('span');
+    badge.className = 'shen-badge';
+    badge.textContent = '(身)';
+    bot.appendChild(badge);
+    const spacer = document.createElement('span');
+    spacer.style.flex = '1';
+    bot.appendChild(spacer);
+  }
+  div.appendChild(bot);
+
+  const brDiv = document.createElement('div');
+  brDiv.className = 'palace-branch';
+  const stemFs = Math.max(8, cellFs - 2);
+  brDiv.innerHTML =
+    `<span class="br-stem" style="font-size:${stemFs}px">${getPalaceStem(st.yinStem, b)}</span>` +
+    `<span class="br-zhi" style="font-size:${cellFs}px">${BR[b]}</span>`;
+  div.appendChild(brDiv);
+
+  div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-over'); });
+  div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+  div.addEventListener('drop', e => { e.preventDefault(); div.classList.remove('drag-over'); doDrop(b); });
+  div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, b); });
+
+  return div;
+}
+
+// Display group for palace sort order: 0=主星 1=六吉 2=六煞 3=次級 4=四化
+const DISPLAY_GROUP = (() => {
+  const m = {};
+  ['文昌','文曲','左輔','右弼','天魁','天鉞'].forEach(s => m[s] = 1);
+  ['擎羊','陀羅','火星','鈴星','地劫','地空'].forEach(s => m[s] = 2);
+  return m;
+})();
+
+// Category sort order for palace display: main → 六吉 → 六煞 → 次級 → sihua
+const CAT_ORDER = {main:0, year:3, month:3, day:3, hour:3, other:3, sihua:4};
+
+function getDisplayGroup(star) {
+  if (star.cat === 'main') return 0;
+  if (star.cat === 'sihua') return 4;
+  return DISPLAY_GROUP[star.name] ?? 3;
+}
+
+// Sort palace items: group each non-sihua star with its attached sihua children,
+// then sort groups by display group order
+function sortedItems(items) {
+  const byStar = {};
+  const leaders = [];
+  items.forEach(item => {
+    if (item.cat === 'sihua' && item.attachedTo) {
+      (byStar[item.attachedTo] = byStar[item.attachedTo] || []).push(item);
+    } else {
+      leaders.push(item);
+    }
+  });
+  leaders.sort((a, b) => getDisplayGroup(a) - getDisplayGroup(b));
+  return leaders.map(leader => ({
+    leader,
+    children: byStar[leader.name] || []
+  }));
+}
+
+function getPalaceStem(stemIdx, b) {
+  return (stemIdx !== null && stemIdx >= 0 && stemIdx <= 9)
+    ? STEMS[(stemIdx + (b - 2 + 12) % 12) % 10]
+    : '';
+}
+
+function makeStarChip(star, branchIdx, ch) {
+  const chip = document.createElement('div');
+  chip.className = 'star-chip t-' + star.cat;
+
+  const fs = Math.max(10, Math.min(20, Math.round(ch * 0.13)));
+  chip.style.fontSize = fs + 'px';
+
+  if (star.cat === 'sihua') {
+    const short = star.name.replace('化', '');
+    chip.classList.add('sihua-' + ({祿:'lu',權:'quan',科:'ke',忌:'ji'}[short] || ''));
+    chip.textContent = short;
+    if (star.attachedTo) {
+      chip.title = `附${star.attachedTo}　拖走可重新放置`;
+    }
+  } else {
+    chip.textContent = star.name;
+  }
+
+  chip.draggable = true;
+  chip.addEventListener('dragstart', e => {
+    drag = { name: star.name, cat: star.cat, dtype: 'star', fromPalace: branchIdx, starRef: star };
+    e.dataTransfer.effectAllowed = 'move';
+    e.stopPropagation();
+  });
+  chip.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtx(e, branchIdx); });
+  return chip;
+}
+
+function makeCenter(cw, ch) {
+  const div = document.createElement('div');
+  div.className = 'palace-center';
+  div.style.width  = (cw * 2) + 'px';
+  div.style.height = (ch * 2) + 'px';
+
+  const cellFs = Math.max(10, Math.min(20, Math.round(ch * 0.13)));
+  const fs = Math.min(24, cellFs + 2);
+
+  const col = document.createElement('div');
+  col.className = 'center-col';
+  col.style.fontSize = fs + 'px';
+  col.style.width = '100%';
+
+  // ── 生辰顯示區 ─────────────────────────────
+  const info = document.createElement('div');
+  info.className = 'center-info';
+  info.style.fontSize = fs + 'px';
+  // 國曆
+  if (st.solarDate) {
+    const { year: sy, month: sm, day: sd, hour: sh } = st.solarDate;
+    const hStr = sh !== null ? `${sh}時` : '';
+    const d1 = document.createElement('div');
+    d1.className = 'ci-date';
+    d1.textContent = `國曆 ${sy}年${sm}月${sd}日${hStr}`;
+    info.appendChild(d1);
+  }
+  // 農曆（含干支年）
+  if (st.lunarDateStr) {
+    const gzStr = st.lunarYearAD ? ganzhiYear(st.lunarYearAD) : '';
+    const d2 = document.createElement('div');
+    // Replace year portion with ganzhi year appended
+    const base = st.lunarDateStr.replace(/年/, `年`);
+    d2.innerHTML = `農曆 ${base}`;
+    if (gzStr) {
+      const gz = document.createElement('span');
+      gz.className = 'ci-ganzhi';
+      gz.textContent = `（${gzStr}年）`;
+      d2.appendChild(gz);
+    }
+    info.appendChild(d2);
+  }
+  if (!st.solarDate && !st.lunarDateStr) {
+    const hint = document.createElement('div');
+    hint.style.color = '#aaa';
+    hint.textContent = '請輸入生辰';
+    info.appendChild(hint);
+  }
+  col.appendChild(info);
+
+  // ── 命主 / 身主 顯示 ──────────────────────
+  const zhuRow = document.createElement('div');
+  zhuRow.className = 'center-zhu';
+  const yinyang = st.lunarYearAD ? ((( st.lunarYearAD - 4 + 600) % 10) % 2 === 0 ? '陽' : '陰') : '';
+  const genderStr = st.gender || '';
+  zhuRow.innerHTML =
+    `<span>命主：<strong>${st.mingZhu || '—'}</strong></span>` +
+    `<span>身主：<strong>${st.shenZhu || '—'}</strong></span>` +
+    (yinyang ? `<span>${yinyang}${genderStr}</span>` : '');
+  col.appendChild(zhuRow);
+
+  // ── 選擇器 ────────────────────────────────
+  // 寅宮天干 selector
+  col.appendChild(centerField('寅宮干', `
+    <select onchange="setYinStem(parseInt(this.value))" style="font-size:${fs}px">
+      <option value="-1">選擇</option>
+      ${YIN_STEM_OPTIONS.map(o=>`<option value="${o.idx}"${st.yinStem===o.idx?' selected':''}>${o.label}</option>`).join('')}
+    </select>`));
+
+  // 命宮 selector
+  col.appendChild(centerField('命宮', `
+    <select onchange="setMing(parseInt(this.value))" style="font-size:${fs}px">
+      <option value="-1">選擇</option>
+      ${BR.map((b,i)=>`<option value="${i}"${st.mingGong===i?' selected':''}>${b}</option>`).join('')}
+    </select>`));
+
+  // 身宮 selector
+  col.appendChild(centerField('身宮', `
+    <select onchange="setShen(parseInt(this.value))" style="font-size:${fs}px">
+      <option value="-1">選擇</option>
+      ${BR.map((b,i)=>`<option value="${i}"${st.shenGong===i?' selected':''}>${b}</option>`).join('')}
+    </select>`));
+
+  // 五行局 selector
+  const juOpts = [2,3,4,5,6];
+  col.appendChild(centerField('五行局', `
+    <select onchange="setJu(parseInt(this.value))" style="font-size:${fs}px">
+      <option value="-1">選擇</option>
+      ${juOpts.map(v=>`<option value="${v}"${st.wuXingJu===v?' selected':''}>${JU_NAME[v]}</option>`).join('')}
+    </select>`));
+
+  div.appendChild(col);
+  return div;
+}
+
+function centerField(label, innerHTML) {
+  const d = document.createElement('div');
+  d.className = 'center-field';
+  d.innerHTML = `<label>${label}</label>${innerHTML}`;
+  return d;
+}
+
+// ============================================================
+//  STAR PANEL
+// ============================================================
+function renderPanel() {
+  const panel = document.getElementById('star-panel');
+  panel.innerHTML = '<h3>星曜列表</h3>' +
+    '<div style="font-size:10px;color:#8b6914;text-align:center;margin:-3px 0 6px;line-height:1.35">' +
+    '十四主星：放入任一顆後，自動排上其餘13顆' +
+    '</div>';
+
+  const placed = new Set();
+  st.palaces.forEach(p => p.forEach(s => placed.add(s.name)));
+
+  const cats = [
+    {key:'main',  label:'十四主星',   cls:'t-main'},
+    {key:'year',  label:'依年（24）',  cls:'t-year'},
+    {key:'month', label:'依月（8）',   cls:'t-month'},
+    {key:'day',   label:'依日（4）',   cls:'t-day'},
+    {key:'hour',  label:'依時（8）',   cls:'t-hour'},
+    {key:'other', label:'其他（2）',   cls:'t-other'},
+    {key:'sihua', label:'四化',       cls:'t-sihua'},
+  ];
+
+  cats.forEach(cat => {
+    const wrap = document.createElement('div');
+    wrap.className = 'star-category';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'cat-header';
+    hdr.innerHTML = `<span>${cat.label}</span><span>${st.catOpen[cat.key]?'▲':'▼'}</span>`;
+    hdr.onclick = () => { st.catOpen[cat.key] = !st.catOpen[cat.key]; renderPanel(); };
+    wrap.appendChild(hdr);
+
+    if (st.catOpen[cat.key]) {
+      const starsWrap = document.createElement('div');
+      starsWrap.className = 'cat-stars';
+
+      STARS[cat.key].forEach(name => {
+        const chip = document.createElement('div');
+        chip.className = `panel-chip ${cat.cls}`;
+        chip.textContent = name;
+        const isSihua = cat.key === 'sihua';
+        const isMain  = cat.key === 'main';
+        if (placed.has(name) && !isSihua) chip.classList.add('placed');
+        chip.draggable = true;
+        chip.addEventListener('dragstart', e => {
+          if (placed.has(name) && !isSihua) { e.preventDefault(); return; }
+          drag = { name, cat: cat.key, dtype: 'star', fromPalace: null, starRef: null };
+          e.dataTransfer.effectAllowed = 'copy';
+        });
+        if (!isMain && !isSihua) {
+          chip.addEventListener('click', () => {
+            document.querySelectorAll('.panel-chip.selected-chip').forEach(c => c.classList.remove('selected-chip'));
+            chip.classList.add('selected-chip');
+            const box = document.getElementById('formula-box');
+            const formula = STAR_FORMULA[name];
+            if (formula) {
+              box.innerHTML = `<div class="fb-name">${name}</div>` +
+                formula.split('\n').map(l => `<div>${l}</div>`).join('');
+            } else {
+              box.innerHTML = `<div class="fb-name">${name}</div><div class="fb-hint">（無公式說明）</div>`;
+            }
+          });
+        }
+        starsWrap.appendChild(chip);
+      });
+      wrap.appendChild(starsWrap);
+    }
+    panel.appendChild(wrap);
+  });
+
+  panel.addEventListener('dragover', e => e.preventDefault());
+  panel.addEventListener('drop', e => {
+    e.preventDefault();
+    if (drag && drag.fromPalace !== null && drag.dtype === 'star') {
+      const arr = st.palaces[drag.fromPalace];
+      const i = arr.indexOf(drag.starRef);
+      if (i >= 0) arr.splice(i, 1);
+      drag = null;
+      render();
+    }
+  });
+
+  const fbox = document.createElement('div');
+  fbox.id = 'formula-box';
+  fbox.innerHTML = '<div class="fb-hint">點選星曜可查看排盤公式</div>';
+  panel.appendChild(fbox);
+}
+
+// ============================================================
+//  DRAG & DROP
+
+// ============================================================
+function doDrop(targetBranch) {
+  if (!drag) return;
+  const { name, cat, fromPalace, starRef, dtype } = drag;
+
+  if (fromPalace !== null && fromPalace !== targetBranch) {
+    const arr = st.palaces[fromPalace];
+    const i = arr.indexOf(starRef);
+    if (i >= 0) arr.splice(i, 1);
+  } else if (fromPalace === targetBranch) {
+    drag = null; return;
+  }
+
+  const SIHUA_ATTACHABLE = new Set(['左輔','右弼','文昌','文曲']);
+  if (cat === 'sihua') {
+    const attachable = st.palaces[targetBranch].filter(
+      s => s.cat === 'main' || SIHUA_ATTACHABLE.has(s.name)
+    );
+    if (attachable.length > 0) {
+      pendSihua = { name, targetBranch };
+      showSihua(attachable.map(s => s.name));
+      drag = null; return;
+    }
+  }
+
+  if (cat !== 'sihua' && st.palaces[targetBranch].some(s => s.name === name)) {
+    drag = null; return;
+  }
+
+  const mainCountBeforeDrop = st.palaces.reduce(
+    (count, palace) => count + palace.filter(s => s.cat === 'main').length, 0
+  );
+
+  st.palaces[targetBranch].push({ name, cat, attachedTo: null });
+  drag = null;
+
+  // 十四主星只要放第一顆，就以它為錨點自動排出另外13顆。
+  if (cat === 'main' && mainCountBeforeDrop === 0) {
+    autoFillMainStars(name, targetBranch);
+    return;
+  }
+
+  render();
+}
+
+// ============================================================
+//  CONTEXT MENU
+
+// ============================================================
+function showCtx(e, b) {
+  ctxBranch = b;
+  const menu = document.getElementById('ctx-menu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top  = e.clientY + 'px';
+  menu.style.display = 'block';
+}
+document.getElementById('ctx-ming').onclick  = () => { if(ctxBranch!==null) setMing(ctxBranch); hideCtx(); };
+document.getElementById('ctx-shen').onclick  = () => { if(ctxBranch!==null) setShen(ctxBranch); hideCtx(); };
+document.getElementById('ctx-clear').onclick = () => { if(ctxBranch!==null){ st.palaces[ctxBranch]=[]; render(); } hideCtx(); };
+function hideCtx() { document.getElementById('ctx-menu').style.display='none'; ctxBranch=null; }
+document.addEventListener('click', hideCtx);
+
+// ============================================================
+//  SIHUA MODAL
+// ============================================================
+function showSihua(starNames) {
+  document.getElementById('sihua-title').textContent = pendSihua.name + ' 附掛在哪顆星下？';
+  const list = document.getElementById('sihua-list');
+  list.innerHTML = '';
+
+  const noAttach = document.createElement('div');
+  noAttach.className = 'sihua-opt';
+  noAttach.textContent = '不指定（獨立放置）';
+  noAttach.onclick = () => { addSihua(null); closeSihua(); };
+  list.appendChild(noAttach);
+
+  starNames.forEach(n => {
+    const opt = document.createElement('div');
+    opt.className = 'sihua-opt';
+    opt.textContent = n;
+    opt.onclick = () => { addSihua(n); closeSihua(); };
+    list.appendChild(opt);
+  });
+
+  document.getElementById('sihua-overlay').classList.add('show');
+}
+
+function addSihua(attachTo) {
+  if (!pendSihua) return;
+  const { name, targetBranch } = pendSihua;
+  st.palaces[targetBranch].push({ name, cat: 'sihua', attachedTo: attachTo || null });
+  render();
+}
+
+function closeSihua() {
+  document.getElementById('sihua-overlay').classList.remove('show');
+  pendSihua = null;
+}
+
+// ============================================================
+//  ACTIONS
+// ============================================================
+function setMing(b) {
+  st.mingGong = (b >= 0 && b <= 11) ? b : null;
+  st.mingZhu  = st.mingGong !== null ? MING_ZHU[st.mingGong] : null;
+  render();
+}
+
+function setShen(b) {
+  st.shenGong = (b >= 0 && b <= 11) ? b : null;
+  render();
+}
+
+function setJu(val) {
+  st.wuXingJu = (val >= 2 && val <= 6) ? val : null;
+  render();
+}
+
+// 五虎遁年: 寅宮天干 by yearStem%5
+const YIN_STEM_FROM_YEAR = [2, 4, 6, 8, 0]; // 甲己→丙, 乙庚→戊, 丙辛→庚, 丁壬→壬, 戊癸→甲
+
+function setYinStem(idx) {
+  st.yinStem = (idx >= 0 && idx <= 9) ? idx : null;
+  render();
+}
+
+function updateJu() {
+  const year = parseInt(document.getElementById('iYear').value);
+  if (!isNaN(year)) {
+    const { stem } = yearStemBranch(year);
+    // Auto-set 寅宮天干 if not manually overridden
+    st.yinStem = YIN_STEM_FROM_YEAR[stem % 5];
+    if (st.mingGong !== null) {
+      st.wuXingJu = calcJu(stem, st.mingGong);
+    }
+  }
+}
+
+// updateJu is called only by runAuto (not on input change)
+
+// ============================================================
+//  SOLAR → LUNAR CONVERSION (uses browser built-in Intl API)
+// ============================================================
+function parseChineseDay(s) {
+  if (!s) return null;
+  // 純數字（部分瀏覽器直接給 "2"）
+  if (/^\d+$/.test(s)) return parseInt(s);
+  // 去掉結尾的「日」字（如「二日」→「二」、「初二日」→「初二」）
+  s = s.replace(/日$/, '').trim();
+  const map = {
+    '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,
+    '初一':1,'初二':2,'初三':3,'初四':4,'初五':5,'初六':6,'初七':7,'初八':8,'初九':9,'初十':10,
+    '十一':11,'十二':12,'十三':13,'十四':14,'十五':15,'十六':16,'十七':17,'十八':18,'十九':19,
+    '二十':20,
+    '廿一':21,'廿二':22,'廿三':23,'廿四':24,'廿五':25,'廿六':26,'廿七':27,'廿八':28,'廿九':29,
+    '二十一':21,'二十二':22,'二十三':23,'二十四':24,'二十五':25,'二十六':26,'二十七':27,'二十八':28,'二十九':29,
+    '三十':30,'三十一':31
+  };
+  return map[s] || null;
+}
+
+function solarToLunar(gYear, gMonth, gDay) {
+  // Use noon to avoid timezone-edge issues
+  const date = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+  const CN_NUM = {'正':1,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12,'冬':11,'臘':12};
+
+  const locales = ['zh-TW-u-ca-chinese', 'zh-u-ca-chinese', 'zh-CN-u-ca-chinese'];
+  for (const locale of locales) {
+    try {
+      const fmt = new Intl.DateTimeFormat(locale, {
+        month: 'long', day: 'numeric'   // 不加 year — Chinese 年格式在部分瀏覽器會出錯
+      });
+      const parts = {};
+      fmt.formatToParts(date).forEach(p => { parts[p.type] = p.value; });
+
+      // Parse month: "六月" or "閏六月" or bare "6"
+      let monthStr = parts.month || '';
+      const isLeap = monthStr.startsWith('閏');
+      if (isLeap) monthStr = monthStr.slice(1);
+      monthStr = monthStr.replace(/月$/, '').trim();
+      const lunarMonth = CN_NUM[monthStr] || parseInt(monthStr) || null;
+
+      // Parse day — handle "初二"/"十七"/"二日"/"17" etc.
+      const lunarDay = parseChineseDay(parts.day || '');
+
+      if (!lunarMonth || !lunarDay) continue; // 嘗試下一個 locale
+
+      // Approximate lunar year (Spring Festival is Jan 20–Feb 20)
+      let lunarYear = gYear;
+      if (gMonth === 1) lunarYear = gYear - 1;
+      else if (gMonth === 2 && gDay <= 20 && lunarMonth >= 10) lunarYear = gYear - 1;
+
+      return { lunarYear, lunarMonth, lunarDay, isLeap };
+    } catch(e) {
+      continue;
+    }
+  }
+  return null;
+}
+
+const SHICHEN_NAMES = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+function hourToShichen(h) {
+  if (h === 23) return 0;
+  return Math.floor((h + 1) / 2);
+}
+
+function convertSolarToLunar() {
+  const sy = parseInt(document.getElementById('sYear').value);
+  const sm = parseInt(document.getElementById('sMonth').value);
+  const sd = parseInt(document.getElementById('sDay').value);
+  const shRaw = document.getElementById('sHour').value;
+  const sh = shRaw !== '' ? parseInt(shRaw) : NaN;
+
+  if (isNaN(sy) || isNaN(sm) || isNaN(sd)) { alert('請輸入完整西元年月日'); return; }
+  if (sm < 1 || sm > 12 || sd < 1 || sd > 31) { alert('月份1-12，日期1-31'); return; }
+
+  // 23:00~23:59 視為隔天子時起算，農曆日期需換算為次日
+  let ly = sy, lm = sm, ld = sd;
+  if (sh === 23) {
+    const nd = new Date(sy, sm - 1, sd, 12, 0, 0);
+    nd.setDate(nd.getDate() + 1);
+    ly = nd.getFullYear();
+    lm = nd.getMonth() + 1;
+    ld = nd.getDate();
+  }
+
+  const result = solarToLunar(ly, lm, ld);
+  if (!result || !result.lunarMonth || !result.lunarDay) {
+    alert('轉換失敗，請確認瀏覽器支援中曆（Intl API）'); return;
+  }
+
+  // Determine how to display the lunar year (民國 or 西元)
+  const lunarY = result.lunarYear;
+  const displayYear = lunarY > 1911 ? (lunarY - 1911) : lunarY;
+
+  // Fill lunar inputs
+  document.getElementById('iYear').value = displayYear;
+  document.getElementById('iMonth').value = result.lunarMonth;
+  document.getElementById('iDay').value = result.lunarDay;
+
+  // Set 時辰 if hour provided
+  if (!isNaN(sh)) {
+    document.getElementById('iHour').value = hourToShichen(sh);
+  }
+
+  // Store solar date in state for image export
+  st.solarDate = { year: sy, month: sm, day: sd, hour: isNaN(sh) ? null : sh };
+
+  // Build lunar date string for display
+  const leapStr = result.isLeap ? '閏' : '';
+  const shichenStr = !isNaN(sh) ? SHICHEN_NAMES[hourToShichen(sh)] + '時' : '';
+  st.lunarDateStr = `民國${displayYear}年${leapStr}${result.lunarMonth}月${result.lunarDay}日${shichenStr}`;
+
+  // 身主 from lunar year branch
+  st.lunarYearAD = lunarY;
+  st.shenZhu = SHEN_ZHU[(lunarY - 4 + 600) % 12];
+
+  render();
+}
+
+function runAuto() {
+  const year = parseInt(document.getElementById('iYear').value);
+  const month = parseInt(document.getElementById('iMonth').value);
+  const day   = parseInt(document.getElementById('iDay').value);
+  const h     = parseInt(document.getElementById('iHour').value);
+  if ([year,month,day,h].some(isNaN)) {
+    alert('請先輸入完整農曆生辰（年、月、日、時辰）');
+    return;
+  }
+  if (month<1||month>12||day<1||day>30) { alert('月份1-12，日期1-30'); return; }
+
+  const c = calcFull(year, month, day, h);
+  st.palaces = Array.from({length:12}, ()=>[]);
+  st.mingGong = c.ming;
+  st.shenGong = c.shen;
+  st.wuXingJu = c.ju;
+  st.yinStem  = YIN_STEM_FROM_YEAR[c.stem % 5];
+  const adYear = year < 200 ? year + 1911 : year;
+  st.lunarYearAD = adYear;
+  st.mingZhu = MING_ZHU[c.ming];
+  st.shenZhu = SHEN_ZHU[c.branch];
+  st.gender  = document.getElementById('iGender').value || '男';
+
+  // Place all calculated stars
+  const allPos = c.pos;
+  // Order: main, year, month, day, hour, other
+  ['main','year','month','day','hour','other'].forEach(cat => {
+    STARS[cat].forEach(name => {
+      const b = allPos[name];
+      if (b !== undefined) {
+        st.palaces[b].push({ name, cat, attachedTo: null });
+      }
+    });
+  });
+
+  // Place 四化 as independent items attached to their carrying star
+  c.sihuaStars.forEach((starName, i) => {
+    const b = allPos[starName];
+    if (b !== undefined) {
+      st.palaces[b].push({ name: '化'+SIHUA_TAGS[i], cat: 'sihua', attachedTo: starName });
+    }
+  });
+
+  render();
+}
+
+function runCheck() {
+  const year = parseInt(document.getElementById('iYear').value);
+  const month = parseInt(document.getElementById('iMonth').value);
+  const day   = parseInt(document.getElementById('iDay').value);
+  const h     = parseInt(document.getElementById('iHour').value);
+  if ([year,month,day,h].some(isNaN)) {
+    alert('請先輸入農曆生辰以進行核對');
+    return;
+  }
+  if (month<1||month>12||day<1||day>30) { alert('月份1-12，日期1-30'); return; }
+
+  const c = calcFull(year, month, day, h);
+  const errs = [], oks = [], warns = [];
+
+  // Check placed stars
+  for (let b = 0; b < 12; b++) {
+    st.palaces[b].forEach(star => {
+      if (star.cat === 'sihua') {
+        // Check 四化 placement
+        const tag = star.name.replace('化','');
+        const tagIdx = SIHUA_TAGS.indexOf(tag);
+        if (tagIdx < 0) return;
+        const carryingStar = c.sihuaStars[tagIdx];
+        const correctB = c.pos[carryingStar];
+        if (correctB === undefined) return;
+        if (correctB !== b) {
+          const correctPal = pName(correctB, c.ming);
+          const curPal = pName(b, c.ming);
+          errs.push(`❌ ${star.name}（應附${carryingStar}）應在 ${BR[correctB]}${correctPal} ← 現在在 ${BR[b]}${curPal}`);
+        } else {
+          oks.push(`✅ ${star.name} 正確`);
+        }
+        return;
+      }
+      const correctB = c.pos[star.name];
+      if (correctB === undefined) return; // not in our table
+      if (correctB !== b) {
+        errs.push(`❌ ${star.name} 應在 ${BR[correctB]}${pName(correctB,c.ming)} ← 現在在 ${BR[b]}${pName(b,c.ming)}`);
+      } else {
+        oks.push(`✅ ${star.name} 正確`);
+      }
+    });
+  }
+
+  // Check unplaced main stars
+  const placed = new Set();
+  st.palaces.forEach(p => p.forEach(s => placed.add(s.name)));
+  STARS.main.forEach(name => {
+    if (!placed.has(name)) {
+      const b = c.pos[name];
+      if (b !== undefined)
+        warns.push(`⚠️ ${name} 未放置（應在 ${BR[b]}${pName(b,c.ming)}）`);
+    }
+  });
+
+  // Check center fields
+  const correctYinStem = YIN_STEM_FROM_YEAR[c.stem % 5];
+  if (st.yinStem === null)
+    warns.push(`⚠️ 寅宮干 未選擇（正確：${STEMS[correctYinStem]}）`);
+  else if (st.yinStem !== correctYinStem)
+    errs.push(`❌ 寅宮干 應為 ${STEMS[correctYinStem]}，目前選 ${STEMS[st.yinStem]}`);
+  else
+    oks.push(`✅ 寅宮干 正確（${STEMS[correctYinStem]}）`);
+
+  if (st.mingGong === null)
+    warns.push(`⚠️ 命宮 未選擇（正確：${BR[c.ming]}）`);
+  else if (st.mingGong !== c.ming)
+    errs.push(`❌ 命宮 應在 ${BR[c.ming]}，目前選 ${BR[st.mingGong]}`);
+  else
+    oks.push(`✅ 命宮 正確（${BR[c.ming]}）`);
+
+  if (st.shenGong === null)
+    warns.push(`⚠️ 身宮 未選擇（正確：${BR[c.shen]}）`);
+  else if (st.shenGong !== c.shen)
+    errs.push(`❌ 身宮 應在 ${BR[c.shen]}，目前選 ${BR[st.shenGong]}`);
+  else
+    oks.push(`✅ 身宮 正確（${BR[c.shen]}）`);
+
+  if (st.wuXingJu === null)
+    warns.push(`⚠️ 五行局 未選擇（正確：${JU_NAME[c.ju]}）`);
+  else if (st.wuXingJu !== c.ju)
+    errs.push(`❌ 五行局 應為 ${JU_NAME[c.ju]}，目前選 ${JU_NAME[st.wuXingJu]}`);
+  else
+    oks.push(`✅ 五行局 正確（${JU_NAME[c.ju]}）`);
+
+  showResult(oks, errs, warns, c);
+}
+
+function pName(b, ming) {
+  if (ming === null) return '';
+  return '（' + PNAMES[(ming - b + 12) % 12] + '）';
+}
+
+function showResult(oks, errs, warns, c) {
+  let html = '';
+  if (errs.length === 0 && warns.length === 0 && oks.length > 0)
+    html += '<p style="color:#1a6a2a;font-size:15px;margin-bottom:8px">🎉 全部正確！恭喜！</p>';
+
+  if (errs.length)
+    html += `<p style="margin-bottom:6px;font-weight:bold">錯誤 ${errs.length} 個：</p>` +
+            errs.map(e=>`<div class="r-err">${e}</div>`).join('');
+  if (warns.length)
+    html += `<div style="margin-top:6px"></div>` +
+            warns.map(w=>`<div class="r-warn">${w}</div>`).join('');
+  if (oks.length)
+    html += `<details style="margin-top:8px"><summary style="cursor:pointer;color:#1a6a2a">
+             ✅ 正確星曜 (${oks.length}) — 點開查看</summary>` +
+            oks.map(o=>`<div class="r-ok">${o}</div>`).join('') + '</details>';
+
+  const stemBr = yearStemBranch(parseInt(document.getElementById('iYear').value));
+  html += `<div class="r-info">
+    命宮：${BR[c.ming]}　身宮：${BR[c.shen]}　${JU_NAME[c.ju]}<br>
+    年干：${STEMS[c.stem]}　年支：${BR[c.branch]}　紫微在${BR[c.ziwei]}<br>
+    四化：${SIHUA_TAGS.map((t,i)=>c.sihuaStars[i]+t).join('　')}
+  </div>`;
+
+  document.getElementById('result-content').innerHTML = html;
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+}
+document.getElementById('result-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeResult();
+});
+document.getElementById('sihua-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeSihua();
+});
+
+function clearAll() {
+  if (!confirm('確定要清除所有星曜和設定？')) return;
+  st.palaces = Array.from({length:12}, ()=>[]);
+  st.mingGong = null;
+  st.shenGong = null;
+  st.wuXingJu = null;
+  st.yinStem  = null;
+  st.solarDate = null;
+  st.lunarDateStr = '';
+  st.lunarYearAD = null;
+  st.mingZhu = null;
+  st.shenZhu = null;
+  st.gender  = '男';
+  ['sYear','sMonth','sDay','sHour','iYear','iMonth','iDay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const iHourEl = document.getElementById('iHour');
+  if (iHourEl) iHourEl.selectedIndex = 0;
+  const iGenderEl = document.getElementById('iGender');
+  if (iGenderEl) iGenderEl.value = '男';
+  render();
+}
+
+// ============================================================
+//  IMAGE EXPORT
+// ============================================================
+// ============================================================
+//  IMAGE EXPORT — Canvas drawing (works offline / file://)
+// ============================================================
+function exportImg() {
+  // Single chart at half-A4 (150 DPI) — matching gen_ziwei.py layout
+  const DPI = 150;
+  const MM  = DPI / 25.4;
+  const A4W = Math.round(210 * MM);
+  const A4H = Math.round(297 * MM);
+  const mg  = Math.round(8  * MM);
+  const CW  = A4W - 2 * mg;                       // 1146
+  const CH  = Math.round((A4H - 3 * mg) / 2);     // 806
+  const cw  = CW / 4;
+  const ch  = CH / 4;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = CW;
+  canvas.height = CH;
+  const ctx  = canvas.getContext('2d');
+  const FONT = "'新細明體','PMingLiU','SimSun',serif";
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, CW, CH);
+  ctx.strokeStyle = '#3d2b1a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, CW, CH);
+
+  for (let b = 0; b < 12; b++) {
+    const {r, c} = BR_GRID[b];
+    drawPalaceC(ctx, b, c * cw, r * ch, cw, ch, FONT);
+  }
+  drawCenterC(ctx, cw, ch, cw * 2, ch * 2, FONT);
+
+  canvas.toBlob(blob => {
+    const a = document.createElement('a');
+    a.download = '紫微斗數盤.png';
+    a.href = URL.createObjectURL(blob);
+    a.click();
+  });
+}
+
+function drawPalaceC(ctx, b, x, y, cw, ch, font) {
+  ctx.fillStyle = (st.mingGong === b) ? '#fff9e0' : '#fffdf8';
+  ctx.fillRect(x, y, cw, ch);
+  ctx.strokeStyle = '#8b7055';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, cw, ch);
+
+  const minDim   = Math.min(cw, ch);
+  const branchFs = Math.max(12, Math.round(minDim * 0.14));
+  const starFs   = branchFs;
+  const palFs    = branchFs;
+  const stemFs   = branchFs;
+  const lh       = starFs * 1.35;
+  const botGap   = 4 + Math.round(branchFs * 0.2);
+
+  // ── 主星區域（左上）──
+  ctx.textAlign = 'left';
+  const groups = sortedItems(st.palaces[b]);
+  let sx = x + 4;
+  const sy = y + starFs + 4;
+
+  const STAR_COLOR = {
+    main:'#1a1a8c',
+    year:'#7a5010', month:'#1a6a3a', day:'#4a1a6a', hour:'#8c2a1a',
+    other:'#555', sihua:'#cc3300'
+  };
+  const SIHUA_COLOR = {祿:'#cc0000', 權:'#006600', 科:'#000099', 忌:'#555'};
+
+  groups.forEach(({leader, children}) => {
+    ctx.fillStyle = STAR_COLOR[leader.cat] || '#222';
+    ctx.font = `${starFs}px ${font}`;
+    drawVertC(ctx, leader.name, sx, sy, lh);
+    if (children.length > 0) {
+      const childY = sy + leader.name.length * lh + 4;
+      children.forEach((child, ci) => {
+        const short = child.name.replace('化', '');
+        ctx.fillStyle = SIHUA_COLOR[short] || '#cc3300';
+        ctx.font = `bold ${starFs}px ${font}`;
+        drawVertC(ctx, short, sx, childY + ci * lh * 1.5, lh);
+      });
+    }
+    sx += starFs + 3;
+    if (sx > x + cw - starFs - 4) return;
+  });
+
+  // ── 左下角：本命宮名 ──
+  ctx.textAlign = 'left';
+  const mingY = y + ch - botGap;
+
+  if (st.mingGong !== null) {
+    const off = (st.mingGong - b + 12) % 12;
+    ctx.fillStyle = '#5a3010';
+    ctx.font = `${palFs}px ${font}`;
+    ctx.fillText(PNAMES[off], x + 4, mingY);
+  }
+  if (st.shenGong === b) {
+    ctx.fillStyle = '#c05020';
+    ctx.font = `bold ${palFs}px ${font}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('(身)', x + cw / 2, mingY);
+    ctx.textAlign = 'left';
+  }
+
+  ctx.textAlign = 'right';
+  if (st.yinStem !== null) {
+    ctx.fillStyle = '#7a5020';
+    ctx.font = `bold ${stemFs}px ${font}`;
+    ctx.fillText(getPalaceStem(st.yinStem, b), x + cw - 4, y + ch - branchFs - botGap);
+  }
+  ctx.fillStyle = '#333';
+  ctx.font = `bold ${branchFs}px ${font}`;
+  ctx.fillText(BR[b], x + cw - 4, y + ch - botGap);
+  ctx.textAlign = 'left';
+}
+
+function drawVertC(ctx, text, x, topY, lineH) {
+  for (let i = 0; i < text.length; i++) {
+    ctx.fillText(text[i], x, topY + i * lineH);
+  }
+}
+
+// 農曆月日中文轉換
+function toLunarMonthCh(m) {
+  const n = parseInt(m);
+  if (!n) return m;
+  const d = ['','一','二','三','四','五','六','七','八','九','十'];
+  return n <= 10 ? d[n] : (n === 11 ? '十一' : '十二');
+}
+function toLunarDayCh(d) {
+  const n = parseInt(d);
+  if (!n) return d;
+  const u = ['○','一','二','三','四','五','六','七','八','九'];
+  if (n >= 1  && n <= 9)  return u[n];
+  if (n === 10) return '十';
+  if (n >= 11 && n <= 19) return '十' + u[n - 10];
+  if (n === 20) return '二十';
+  if (n >= 21 && n <= 29) return '廿' + u[n - 20];
+  return '三十';
+}
+
+function drawCenterC(ctx, x, y, szW, szH, font) {
+  ctx.fillStyle = '#f5f0e0';
+  ctx.fillRect(x, y, szW, szH);
+  ctx.strokeStyle = '#8b7055';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, szW, szH);
+
+  const pad = 8;
+  const areaX = x + pad;
+  const areaY = y + pad;
+  const areaW = szW - pad * 2;
+  const areaH = szH - pad * 2;
+
+  // 8列均分（年/月/日/時 各佔一列，上方各留一列填資料）
+  const ROWS = 8;
+  const charGap = areaH / (ROWS + 0.5);
+  // 中心字體 = 宮格地支大小（單宮格 minDim × 0.14）
+  const palMinDim = Math.min(szW / 2, szH / 2);
+  const fs   = Math.max(12, Math.round(palMinDim * 0.14));
+  const fsSm = fs;
+
+  const rowY = r => areaY + charGap * (r + 0.8);
+
+  // 4欄寬度：年月日時欄稍寬(45%)，其餘三欄等分
+  const c0W = areaW * 0.45;
+  const cRW = (areaW - c0W) / 3;
+
+  const c0CX = areaX + areaW - c0W / 2;     // 年月日時（最右）
+  const c1CX = areaX + cRW * 2 + cRW / 2;   // 五行局
+  const c2CX = areaX + cRW + cRW / 2;       // 命主
+  const c3CX = areaX + cRW / 2;             // 身主（最左）
+
+  // 解析生辰資料
+  let lunarMRaw = '', lunarDRaw = '', lunarH = '';
+  if (st.lunarDateStr) {
+    const m = st.lunarDateStr.match(/(\d+)月(\d+)日(?:(子|丑|寅|卯|辰|巳|午|未|申|酉|戌|亥)時)?/);
+    if (m) { lunarMRaw = m[1]; lunarDRaw = m[2]; lunarH = m[3] || ''; }
+  }
+  const lunarMCh = toLunarMonthCh(lunarMRaw);  // 中文月
+  const lunarDCh = toLunarDayCh(lunarDRaw);    // 中文日
+  let solY = '', solM = '', solD = '', solH = '';
+  if (st.solarDate) {
+    solY = String(st.solarDate.year);
+    solM = String(st.solarDate.month);
+    solD = String(st.solarDate.day);
+    solH = st.solarDate.hour !== null ? String(st.solarDate.hour) : '';
+  }
+  const gz = st.lunarYearAD ? ganzhiYear(st.lunarYearAD) : '';
+
+  // 繪製中心欄縱書字
+  const dc = (cx, row, ch) => {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#5a3010';
+    ctx.font = `bold ${fs}px ${font}`;
+    ctx.fillText(ch, cx, rowY(row));
+  };
+
+  // 在某列的上方格（row）繪製左右資料，中間以 2*fsSm 分開
+  // 左側農曆值若 2~3 字則豎排
+  const extraGap = fsSm * 2;  // 資訊間距
+  const drawAbove = (row, leftVal, rightVal) => {
+    const offset = extraGap;
+    if (leftVal) {
+      ctx.fillStyle = '#8b1a1a';
+      const chars = [...leftVal];
+      if (chars.length >= 2) {
+        // 豎排：字型縮小，依字數均分行距
+        const stackFs = fsSm * (chars.length === 2 ? 0.82 : 0.70);
+        const step = fsSm * (chars.length === 2 ? 0.9 : 0.78);
+        const topY = rowY(row) - step * (chars.length - 1) / 2;
+        ctx.textAlign = 'right';
+        ctx.font = `${stackFs}px ${font}`;
+        chars.forEach((ch, i) => ctx.fillText(ch, c0CX - offset, topY + step * i));
+      } else {
+        ctx.textAlign = 'right';
+        ctx.font = `${fsSm}px ${font}`;
+        ctx.fillText(leftVal, c0CX - offset, rowY(row));
+      }
+    }
+    if (rightVal) {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a3a8b';
+      ctx.font = `${fsSm}px ${font}`;
+      ctx.fillText(rightVal, c0CX + offset, rowY(row));
+    }
+  };
+
+  // ── 年月日時 欄 ─────────────────────────────────────
+  // Row 0: 年上方 → 左:干支年  右:西元年（無中心字，間距用 extraGap）
+  drawAbove(0, gz, solY);
+  dc(c0CX, 1, '年');
+
+  // Row 2: 月上方 → 左:農曆月(中文)  右:西元月
+  drawAbove(2, lunarMCh, solM);
+  dc(c0CX, 3, '月');
+
+  // Row 4: 日上方 → 左:農曆日(中文)  右:西元日
+  drawAbove(4, lunarDCh, solD);
+  dc(c0CX, 5, '日');
+
+  // Row 6: 時上方 → 左:農曆時辰  右:西元時
+  drawAbove(6, lunarH, solH);
+  dc(c0CX, 7, '時');
+
+  // ── 陰陽男女（Row 7，與「時」同高）─────────────────────
+  const stem10 = st.lunarYearAD ? (st.lunarYearAD - 4 + 600) % 10 : null;
+  const yinyang = stem10 !== null ? (stem10 % 2 === 0 ? '陽' : '陰') : '';
+  const genderCh = st.gender || '';
+  if (yinyang || genderCh) {
+    const label = yinyang + genderCh;
+    const midX = (c3CX + c2CX) / 2;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#5a3010';
+    ctx.font = `bold ${fs}px ${font}`;
+    ctx.fillText(label, midX, rowY(7));
+  }
+
+  // ── 五行局 欄（Row 0-2 標題，Row 3 空，Row 4+ 內容）────
+  ['五','行','局'].forEach((ch, i) => dc(c1CX, i, ch));
+  if (st.wuXingJu) {
+    JU_NAME[st.wuXingJu].split('').forEach((ch, i) => dc(c1CX, 4 + i, ch));
+  }
+
+  // ── 命主 欄（Row 0-1 標題，Row 2-3 空，Row 4+ 內容）────
+  ['命','主'].forEach((ch, i) => dc(c2CX, i, ch));
+  if (st.mingZhu) {
+    st.mingZhu.split('').forEach((ch, i) => dc(c2CX, 4 + i, ch));
+  }
+
+  // ── 身主 欄（同上）──────────────────────────────────
+  ['身','主'].forEach((ch, i) => dc(c3CX, i, ch));
+  if (st.shenZhu) {
+    st.shenZhu.split('').forEach((ch, i) => dc(c3CX, 4 + i, ch));
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function copyImgSimple() {
+  const DPI = 150;
+  const MM  = DPI / 25.4;
+  const A4W = Math.round(210 * MM);
+  const A4H = Math.round(297 * MM);
+  const mg  = Math.round(8  * MM);
+  const CW  = A4W - 2 * mg;
+  const CH  = Math.round((A4H - 3 * mg) / 2);
+  const cw  = CW / 4;
+  const ch  = CH / 4;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = CW;
+  canvas.height = CH;
+  const ctx  = canvas.getContext('2d');
+  const FONT = "'新細明體','PMingLiU','SimSun',serif";
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, CW, CH);
+  ctx.strokeStyle = '#3d2b1a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, CW, CH);
+
+  for (let b = 0; b < 12; b++) {
+    const {r, c} = BR_GRID[b];
+    drawPalaceC(ctx, b, c * cw, r * ch, cw, ch, FONT);
+  }
+  drawCenterSimpleC(ctx, cw, ch, cw * 2, ch * 2, FONT);
+
+  canvas.toBlob(blob => {
+    navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
+      .catch(() => {
+        // fallback: download if clipboard API not supported
+        const a = document.createElement('a');
+        a.download = '紫微斗數盤(簡).png';
+        a.href = URL.createObjectURL(blob);
+        a.click();
+      });
+  });
+}
+
+function drawCenterSimpleC(ctx, x, y, szW, szH, font) {
+  ctx.fillStyle = '#f5f0e0';
+  ctx.fillRect(x, y, szW, szH);
+  ctx.strokeStyle = '#8b7055';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, szW, szH);
+
+  const palMinDim = Math.min(szW / 2, szH / 2);
+  const fs = Math.max(16, Math.round(palMinDim * 0.18));
+  const cx = x + szW / 2;
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#5a3010';
+  ctx.font = `bold ${fs}px ${font}`;
+
+  // 陰陽男女
+  const stem10 = st.lunarYearAD ? (st.lunarYearAD - 4 + 600) % 10 : null;
+  const yinyang = stem10 !== null ? (stem10 % 2 === 0 ? '陽' : '陰') : '';
+  const label = yinyang + (st.gender || '');
+  if (label) {
+    ctx.fillText(label, cx, y + szH / 2 - fs * 0.8);
+  }
+
+  // 五行局
+  if (st.wuXingJu) {
+    ctx.fillText(JU_NAME[st.wuXingJu] || '', cx, y + szH / 2 + fs * 0.8);
+  }
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+}
+
+
+// ============================================================
+//  RESIZE SUPPORT
+// ============================================================
+window.addEventListener('resize', () => renderGrid());
+
+// ============================================================
+//  INIT
+// ============================================================
+render();
+</script>
+</body>
+</html>
+
