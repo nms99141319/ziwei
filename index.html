@@ -244,6 +244,65 @@ body {
   flex-shrink: 0;
 }
 #star-panel h3 { font-size: 12px; color: #3d2b1a; margin-bottom: 6px; text-align: center; }
+
+/* ── 手機版：星曜面板改為右側抽屜，不佔用排盤版面寬度 ── */
+#btn-toggle-panel { display: none; }
+#panel-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 40;
+}
+#tap-status {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  background: #3d2b1a;
+  color: #f0e6d3;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  align-items: center;
+  gap: 10px;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  white-space: nowrap;
+  max-width: 92vw;
+}
+#tap-status.show { display: flex; }
+#tap-status button {
+  background: #c9a96e;
+  border: none;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: #222;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tap-pending { outline: 2px dashed #c05000 !important; background: #ffe6c2 !important; }
+
+@media (max-width: 820px) {
+  #btn-toggle-panel { display: inline-block; }
+  #star-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 82vw;
+    max-width: 320px;
+    min-width: 0;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    z-index: 50;
+    box-shadow: -3px 0 10px rgba(0,0,0,0.35);
+  }
+  #star-panel.open { transform: translateX(0); }
+  #panel-backdrop.show { display: block; }
+}
 .star-category { margin-bottom: 6px; }
 .cat-header {
   font-size: 11px;
@@ -418,6 +477,7 @@ body {
   <button onclick="clearAll()">🗑 清除全部</button>
   <button onclick="exportImg()">💾 存成圖片</button>
   <button onclick="copyImgSimple()">📋 複製盤</button>
+  <button id="btn-toggle-panel" onclick="toggleStarPanel()">☰ 星曜</button>
   <input type="number" id="gzYear" placeholder="西元/民國年" style="width:90px"
          oninput="updateGanzhi()" onchange="updateGanzhi()">
   <span id="gzResult" class="gz-result">—</span>
@@ -429,6 +489,11 @@ body {
     <div id="chart-grid"></div>
   </div>
   <div id="star-panel"></div>
+</div>
+<div id="panel-backdrop" onclick="closeStarPanel()"></div>
+<div id="tap-status">
+  <span id="tap-status-text"></span>
+  <button onclick="cancelTapSelect()">取消</button>
 </div>
 
 <!-- Result modal -->
@@ -930,15 +995,18 @@ function gridSize() {
   const tb = document.getElementById('toolbar');
   const starPanel = document.getElementById('star-panel');
   const headerH = tb ? tb.offsetHeight : 50;
-  const sideW = (starPanel ? starPanel.offsetWidth : 215);
+  // 手機版（寬度 <= 820px，需與 CSS 斷點一致）星曜面板改為覆蓋式抽屜，
+  // 不佔用排盤版面寬度，故不計入 sideW
+  const isMobileLayout = window.innerWidth <= 820;
+  const sideW = isMobileLayout ? 0 : (starPanel ? starPanel.offsetWidth : 215);
   const availW = window.innerWidth  - sideW - 20;
   const availH = window.innerHeight - headerH - 8;
   let gridW, gridH;
   if (availW / availH > RATIO) {
-    gridH = Math.max(200, availH);
+    gridH = Math.max(160, availH);
     gridW = Math.round(gridH * RATIO);
   } else {
-    gridW = Math.max(284, availW);
+    gridW = Math.max(240, availW);
     gridH = Math.round(gridW / RATIO);
   }
   return { cw: Math.floor(gridW / 4), ch: Math.floor(gridH / 4) };
@@ -1034,6 +1102,7 @@ function makePalace(b, cw, ch) {
   div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-over'); });
   div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
   div.addEventListener('drop', e => { e.preventDefault(); div.classList.remove('drag-over'); doDrop(b); });
+  div.addEventListener('click', () => { if (drag) doDrop(b); });
   div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, b); });
 
   return div;
@@ -1104,6 +1173,10 @@ function makeStarChip(star, branchIdx, ch) {
     drag = { name: star.name, cat: star.cat, dtype: 'star', fromPalace: branchIdx, starRef: star };
     e.dataTransfer.effectAllowed = 'move';
     e.stopPropagation();
+  });
+  chip.addEventListener('click', e => {
+    e.stopPropagation();
+    selectForTap({ name: star.name, cat: star.cat, dtype: 'star', fromPalace: branchIdx, starRef: star }, chip);
   });
   chip.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtx(e, branchIdx); });
   return chip;
@@ -1275,6 +1348,10 @@ function renderPanel() {
             }
           });
         }
+        chip.addEventListener('click', () => {
+          if (placed.has(name) && !isSihua) return;
+          selectForTap({ name, cat: cat.key, dtype: 'star', fromPalace: null, starRef: null }, chip);
+        });
         starsWrap.appendChild(chip);
       });
       wrap.appendChild(starsWrap);
@@ -1304,8 +1381,62 @@ function renderPanel() {
 //  DRAG & DROP
 
 // ============================================================
+// ============================================================
+//  MOBILE：抽屜面板切換 & 點選放置（取代觸控裝置不支援的原生拖曳）
+// ============================================================
+function toggleStarPanel() {
+  const panel = document.getElementById('star-panel');
+  const backdrop = document.getElementById('panel-backdrop');
+  const isOpen = panel.classList.toggle('open');
+  if (backdrop) backdrop.classList.toggle('show', isOpen);
+}
+
+function closeStarPanel() {
+  const panel = document.getElementById('star-panel');
+  const backdrop = document.getElementById('panel-backdrop');
+  if (panel) panel.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('show');
+}
+
+function selectForTap(item, chipEl) {
+  if (chipEl && chipEl.classList.contains('tap-pending')) {
+    cancelTapSelect();
+    return;
+  }
+  document.querySelectorAll('.tap-pending').forEach(el => el.classList.remove('tap-pending'));
+  drag = item;
+  if (chipEl) chipEl.classList.add('tap-pending');
+  showTapStatus(item.name);
+}
+
+function cancelTapSelect() {
+  drag = null;
+  document.querySelectorAll('.tap-pending').forEach(el => el.classList.remove('tap-pending'));
+  hideTapStatus();
+}
+
+function showTapStatus(name) {
+  const bar = document.getElementById('tap-status');
+  if (!bar) return;
+  const txt = document.getElementById('tap-status-text');
+  if (txt) txt.textContent = `已選取「${name}」，請點選宮位放置`;
+  bar.classList.add('show');
+}
+
+function hideTapStatus() {
+  const bar = document.getElementById('tap-status');
+  if (bar) bar.classList.remove('show');
+}
+
+function clearTapSelection() {
+  document.querySelectorAll('.tap-pending').forEach(el => el.classList.remove('tap-pending'));
+  hideTapStatus();
+  closeStarPanel();
+}
+
 function doDrop(targetBranch) {
   if (!drag) return;
+  clearTapSelection();
   const { name, cat, fromPalace, starRef, dtype } = drag;
 
   if (fromPalace !== null && fromPalace !== targetBranch) {
