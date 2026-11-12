@@ -315,6 +315,13 @@ body {
   }
   #star-panel.open { transform: translateX(0); }
   #panel-backdrop.show { display: block; }
+  /* 手機尺寸時每宮星曜數可能多達 9 個，改為左右捲動避免被壓縮或裁切 */
+  .palace-stars {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
 }
 .star-category { margin-bottom: 6px; }
 .cat-header {
