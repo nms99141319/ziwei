@@ -10,6 +10,7 @@ body {
   font-family: '新細明體','PMingLiU','SimSun',serif;
   background: #f8f4ec;
   height: 100vh;
+  height: var(--app-vh, 100vh); /* 手機版用 JS 量測的實際可視高度，避免網址列/鍵盤造成版面被截斷 */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -62,6 +63,16 @@ body {
 #toolbar input { width: 52px; }
 #toolbar select { max-width: 100px; }
 .sep { color: #c9a96e; font-size: 16px; }
+
+/* 手機橫向（短螢幕高度）：工具列縮小，釋放更多高度給排盤格子 */
+@media (max-height: 430px) {
+  #toolbar { padding: 2px 8px; gap: 3px; }
+  #toolbar .title { font-size: 11px; }
+  #toolbar button { padding: 2px 6px; font-size: 11px; }
+  #toolbar label { font-size: 10px; }
+  #toolbar input, #toolbar select { font-size: 10px; padding: 1px 3px; }
+  #toolbar input { width: 42px; }
+}
 #main {
   display: flex;
   flex: 1;
@@ -188,15 +199,17 @@ body {
   flex-direction: row;
   align-items: stretch;
   justify-content: center;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .center-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 4px 6px;
   gap: 6px;
+  margin: auto 0;
 }
 .center-field {
   display: flex;
@@ -995,18 +1008,21 @@ function gridSize() {
   const tb = document.getElementById('toolbar');
   const starPanel = document.getElementById('star-panel');
   const headerH = tb ? tb.offsetHeight : 50;
+  // 使用 visualViewport（若支援）取得實際可視寬高，避免手機網址列/鍵盤顯示時 innerWidth/innerHeight 量測不準
+  const vw = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   // 手機版（寬度 <= 820px，需與 CSS 斷點一致）星曜面板改為覆蓋式抽屜，
   // 不佔用排盤版面寬度，故不計入 sideW
-  const isMobileLayout = window.innerWidth <= 820;
+  const isMobileLayout = vw <= 820;
   const sideW = isMobileLayout ? 0 : (starPanel ? starPanel.offsetWidth : 215);
-  const availW = window.innerWidth  - sideW - 20;
-  const availH = window.innerHeight - headerH - 8;
+  const availW = vw - sideW - 20;
+  const availH = vh - headerH - 8;
   let gridW, gridH;
   if (availW / availH > RATIO) {
-    gridH = Math.max(160, availH);
+    gridH = Math.max(120, availH);
     gridW = Math.round(gridH * RATIO);
   } else {
-    gridW = Math.max(240, availW);
+    gridW = Math.max(180, availW);
     gridH = Math.round(gridW / RATIO);
   }
   return { cw: Math.floor(gridW / 4), ch: Math.floor(gridH / 4) };
@@ -2255,11 +2271,33 @@ function drawCenterSimpleC(ctx, x, y, szW, szH, font) {
 // ============================================================
 //  RESIZE SUPPORT
 // ============================================================
-window.addEventListener('resize', () => renderGrid());
+// 手機瀏覽器網址列/鍵盤收合時，window.innerHeight 不一定即時正確，
+// 改用 --app-vh 自訂屬性 + visualViewport 事件確保版面高度與排盤格子即時同步，
+// 並在旋轉/視窗變化時重設捲動位置，避免工具列被瀏覽器自動捲動遮蔽一半。
+function syncViewportHeight() {
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--app-vh', vh + 'px');
+}
+function refreshLayout() {
+  syncViewportHeight();
+  window.scrollTo(0, 0);
+  renderGrid();
+}
+window.addEventListener('resize', refreshLayout);
+window.addEventListener('orientationchange', () => {
+  // 部分手機瀏覽器旋轉後需要一點時間才回報正確尺寸，延遲重新量測
+  setTimeout(refreshLayout, 150);
+  setTimeout(refreshLayout, 400);
+});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', refreshLayout);
+  window.visualViewport.addEventListener('scroll', () => window.scrollTo(0, 0));
+}
 
 // ============================================================
 //  INIT
 // ============================================================
+syncViewportHeight();
 render();
 </script>
 </body>
